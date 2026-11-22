@@ -7,6 +7,7 @@ mod pictogram_glyph_tests;
 mod presentation_choice_tests;
 mod presentation_input_keys_tests;
 mod presentation_input_tests;
+mod presentation_pinned_actions_tests;
 mod presentation_protocol_tests;
 mod presentation_renderer_edge_tests;
 mod presentation_renderer_tests;
