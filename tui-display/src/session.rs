@@ -101,7 +101,7 @@ impl TerminalSession {
                 MotionPreference::Full
             },
             color_scheme: None,
-            pinned_actions: false,
+            pinned_actions: true,
         })
     }
 

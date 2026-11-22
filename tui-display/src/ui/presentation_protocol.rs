@@ -150,6 +150,7 @@ impl PresentationState {
         ]
         .into_iter()
         .flatten()
+        .chain(bar.pinned.iter())
         .collect()
     }
 

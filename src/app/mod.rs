@@ -93,9 +93,17 @@ impl App {
     }
 
     pub fn report_presentation_environment(&mut self, available_width: u32, available_height: u32) {
+        let _ = self.dispatch_presentation_event(Self::presentation_environment(
+            available_width,
+            available_height,
+        ));
+    }
+
+    /// The terminal's outgoing environment report, including the controls it draws.
+    pub fn presentation_environment(available_width: u32, available_height: u32) -> Event {
         let reduced_motion = std::env::var("VAUCHI_REDUCED_MOTION")
             .is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "yes"));
-        let _ = self.dispatch_presentation_event(Event::PresentationEnvironmentChanged {
+        Event::PresentationEnvironmentChanged {
             available_width,
             available_height,
             input_modes: vec![InputMode::Keyboard],
@@ -105,8 +113,8 @@ impl App {
                 MotionPreference::Full
             },
             color_scheme: None,
-            pinned_actions: false,
-        });
+            pinned_actions: true,
+        }
     }
 
     pub fn tick_status(&mut self) {

@@ -17,6 +17,7 @@ use vauchi_contract::{ActionSpec, OverlayKind};
 use super::presentation_protocol::PresentationState;
 
 mod nodes;
+mod pinned;
 use nodes::append_node_lines;
 
 pub fn draw(
@@ -27,8 +28,13 @@ pub fn draw(
     selected_surface_target: Option<usize>,
     loading_label: &str,
 ) {
-    let [content_area, bar_area] =
-        Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).areas(area);
+    let pinned_height = pinned::height(state, area.width);
+    let [content_area, pinned_area, bar_area] = Layout::vertical([
+        Constraint::Min(1),
+        Constraint::Length(pinned_height),
+        Constraint::Length(3),
+    ])
+    .areas(area);
     draw_surface(
         frame,
         content_area,
@@ -36,6 +42,7 @@ pub fn draw(
         selected_surface_target,
         loading_label,
     );
+    pinned::draw(frame, pinned_area, state, selected_action);
     draw_context_bar(frame, bar_area, state, selected_action);
     if state.overlay().is_some() {
         draw_overlay(frame, area, state, selected_action);
