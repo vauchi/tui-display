@@ -218,6 +218,7 @@ fn ctrl_z_runs_only_the_undo_shortcut_action() {
             primary: Some(action("continue", Some(StandardShortcut::ActivatePrimary))),
             secondary: Some(action("undo", Some(StandardShortcut::Undo))),
             info: None,
+            pinned: Vec::new(),
         }),
     }]);
     let mut interaction = InteractionState::default();

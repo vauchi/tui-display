@@ -154,6 +154,7 @@ fn the_context_bar_highlights_only_the_selected_action() {
             primary: Some(action("continue", "Continue")),
             secondary: Some(action("more", "More")),
             info: None,
+            pinned: Vec::new(),
         }),
     }]);
 

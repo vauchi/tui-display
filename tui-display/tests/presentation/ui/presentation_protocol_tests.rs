@@ -170,6 +170,7 @@ fn transaction_installs_surface_context_bar_and_overlay_atomically() {
                 primary: Some(action("primary")),
                 secondary: Some(action("secondary")),
                 info: None,
+                pinned: Vec::new(),
             }),
         },
         Command::PresentOverlay {

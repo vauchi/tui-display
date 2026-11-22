@@ -105,6 +105,7 @@ impl App {
                 MotionPreference::Full
             },
             color_scheme: None,
+            pinned_actions: false,
         });
     }
 

@@ -85,6 +85,7 @@ fn renderer_keeps_content_humble_and_contextual_roles_in_one_bottom_strip() {
                 primary: Some(action("primary", "Continue")),
                 secondary: Some(action("secondary", "More")),
                 info: None,
+                pinned: Vec::new(),
             }),
         },
     ]);
@@ -589,6 +590,7 @@ fn the_info_slot_is_drawn_last_and_its_overlay_shows_the_text() {
                 primary: Some(action("primary", "Add")),
                 secondary: Some(action("secondary", "More")),
                 info: Some(action("info", "Info")),
+                pinned: Vec::new(),
             }),
         },
     ]);

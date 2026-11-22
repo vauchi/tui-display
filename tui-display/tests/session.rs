@@ -63,6 +63,7 @@ fn window_of(width: u32, height: u32) -> Event {
         input_modes: vec![InputMode::Keyboard],
         motion: MotionPreference::Full,
         color_scheme: None,
+        pinned_actions: false,
     }
 }
 

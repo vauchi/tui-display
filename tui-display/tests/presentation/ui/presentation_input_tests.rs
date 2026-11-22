@@ -83,6 +83,7 @@ pub(super) fn state_with_input() -> PresentationState {
                 primary: Some(action("continue", Some(StandardShortcut::ActivatePrimary))),
                 secondary: Some(action("secondary", None)),
                 info: None,
+                pinned: Vec::new(),
             }),
         },
     ]);
@@ -293,6 +294,7 @@ fn tab_keeps_cycling_context_actions_while_a_list_is_present() {
             primary: Some(action("continue", None)),
             secondary: None,
             info: None,
+            pinned: Vec::new(),
         }),
     }]);
     let mut interaction = InteractionState::default();
@@ -734,6 +736,7 @@ fn state_with_info() -> PresentationState {
             primary: Some(action("continue", Some(StandardShortcut::ActivatePrimary))),
             secondary: Some(action("secondary", None)),
             info: Some(action("info", None)),
+            pinned: Vec::new(),
         }),
     }]);
     state
@@ -855,6 +858,7 @@ pub(super) fn state_with_row_info() -> PresentationState {
                 primary: None,
                 secondary: None,
                 info: Some(action("surface-info", None)),
+                pinned: Vec::new(),
             }),
         },
     ]);
