@@ -529,6 +529,79 @@ fn tab_leaves_the_field_so_enter_activates_the_primary_action() {
     );
 }
 
+/// Bar focus belongs to the screen it was given on. Without that, a Tab
+/// on one screen carried its index to the next, and Return there ran
+/// whatever action sat at the old position: the e2e device link's
+/// "Codes Match" was never pressed and the link timed out
+/// (vauchi/private#1364).
+// @scenario: generic_presentation_protocol.feature :: Return in a field reports a submission
+#[test]
+fn a_new_surface_drops_the_bar_focus_so_return_runs_its_primary() {
+    let mut state = state_with_input();
+    let mut interaction = InteractionState::default();
+    interaction.key_outcome(
+        &state,
+        KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+    );
+    interaction.key_outcome(&state, KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    interaction.key_outcome(&state, KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+
+    let surface_id = SurfaceId::new("device_linking").unwrap();
+    state.apply(&[
+        Command::ReplaceSurface {
+            surface: SurfaceSpec {
+                surface_id: surface_id.clone(),
+                revision: 1,
+                title: "Device Wants to Link".into(),
+                subtitle: None,
+                accessibility_label: "Device Wants to Link".into(),
+                layout: SurfaceLayout::Fixed,
+                tokens: PresentationTokens {
+                    spacing_small: 1,
+                    spacing_medium: 2,
+                    spacing_large: 3,
+                    corner_radius: 1,
+                    minimum_target_size: 1,
+                    colors: crate::ui::test_colors::test_colors(),
+                    fonts: None,
+                },
+                nodes: Vec::new(),
+            },
+        },
+        Command::SetContextBar {
+            surface_id,
+            revision: 1,
+            bar: Box::new(ContextBar {
+                back: Some(action("cancel", Some(StandardShortcut::Back))),
+                navigation: Some(action("navigation", None)),
+                primary: Some(action(
+                    "codes_match",
+                    Some(StandardShortcut::ActivatePrimary),
+                )),
+                secondary: Some(action("actions", None)),
+                info: None,
+                pinned: Vec::new(),
+            }),
+        },
+    ]);
+
+    let KeyOutcome::Events(events) =
+        interaction.key_outcome(&state, KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+    else {
+        panic!("expected events");
+    };
+    assert!(
+        matches!(
+            events.as_slice(),
+            [
+                Event::SurfaceActivated { .. },
+                Event::ActionActivated { interaction_id, .. }
+            ] if interaction_id.as_str() == "codes_match"
+        ),
+        "Return on a new screen must run its primary action, got {events:?}"
+    );
+}
+
 /// Home and End reach the ends of a list without holding a key down.
 ///
 /// With 200 contacts, Up and Down alone make the far end of the list a
