@@ -1,61 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Mattia Egloff <mattia.egloff@pm.me>
-#
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-[workspace]
-members = ["tui-display"]
-default-members = [".", "tui-display"]
-resolver = "2"
-
 [package]
-name = "vauchi-tui"
-version = "0.3.5"
+name = "vauchi-tui-display"
+version = "0.4.0"
 edition = "2024"
-description = "Terminal UI for Vauchi - privacy-focused contact card exchange"
 license = "GPL-3.0-or-later"
-
-[features]
-default = []
-secure-storage = ["vauchi-core/secure-storage"]
+description = "Terminal display shell for the Vauchi presentation contract"
 
 [dependencies]
-vauchi-tui-display = { path = "tui-display", version = "0.2.0" }
-# Core library - use git dependency for CI, patched to local path via .cargo/config.toml
-vauchi-core = { git = "https://gitlab.com/vauchi/core.git", tag = "v0.108.0", version = "=0.108.0", features = ["network"] }
-vauchi-app = { git = "https://gitlab.com/vauchi/core.git", tag = "v0.108.0", version = "=0.108.0", default-features = false, features = ["network", "content-updates"] }
-
-# Terminal UI
-ratatui = { version = "0.30.2", default-features = false, features = ["std", "layout-cache", "underline-color"] }
-ratatui-crossterm = { version = "0.1.2", default-features = false, features = ["crossterm_0_28", "underline-color"] }
+vauchi-contract = { git = "https://gitlab.com/vauchi/contract.git", tag = "v0.99.0", version = "=0.99.0" }
+ratatui-core = { version = "0.1.2", default-features = false, features = ["std", "layout-cache", "underline-color"] }
+ratatui-widgets = { version = "0.3.2", default-features = false, features = ["std", "unstable-rendered-line-info"] }
 crossterm = "0.28"
-
-# CLI argument parsing
-clap = { version = "4", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
-
-# Error handling
-anyhow = "1.0"
-
-# Directories for config
-dirs = "5.0"
-
-# Hex encoding
-hex = "0.4"
-
-# Serialization for protocol messages
 serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
 
 [dev-dependencies]
 tempfile = "3"
-insta = "1.41"
-regex = "1"
-rstest = "0.26"
-
-# Release profile: smaller + safer binaries (matches core)
-[profile.release]
-lto = true
-strip = true
-panic = "abort"
-overflow-checks = true
 
 # Development profile: fast builds, backtraces work (matches core)
 [profile.dev]
@@ -66,4 +29,3 @@ split-debuginfo = "unpacked"
 [profile.test]
 debug = "line-tables-only"
 split-debuginfo = "off"
-

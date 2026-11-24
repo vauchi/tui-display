@@ -11,13 +11,13 @@ end = "2027-04-10"
 
 [[trusted.indexmap]]
 criteria = "safe-to-deploy"
-user-id = 539 # Josh Stone (cuviper)
+user-id = 539
 start = "2020-01-15"
 end = "2027-04-10"
 
 [[trusted.winapi-util]]
 criteria = "safe-to-deploy"
-user-id = 189 # Andrew Gallant (BurntSushi)
+user-id = 189
 start = "2020-01-11"
 end = "2027-03-10"
 

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 version = 1
-SPDX-PackageName = "vauchi-tui"
+SPDX-PackageName = "vauchi-tui-display"
 SPDX-PackageSupplier = "Mattia Egloff <mattia.egloff@pm.me>"
 
 # License files

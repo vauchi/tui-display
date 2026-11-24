@@ -13,8 +13,7 @@
 .DS_Store
 Thumbs.db
 
-# TUI data
-.vauchi/
+# Cargo
 .cargo/*
 !.cargo/mutants.toml
 
@@ -29,7 +28,5 @@ Thumbs.db
 credentials.json
 service-account*.json
 
-# Generated VRT snapshot images (rendered in CI from .snap)
-tests/vrt/out/
 __pycache__/
 .cargo/config.toml
