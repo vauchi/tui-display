@@ -87,10 +87,6 @@ criteria = "safe-to-deploy"
 version = "2.5.0"
 criteria = "safe-to-run"
 
-[[exemptions.getrandom]]
-version = "0.2.2"
-criteria = "safe-to-run"
-
 [[exemptions.indoc]]
 version = "2.0.7"
 criteria = "safe-to-deploy"
@@ -150,10 +146,6 @@ criteria = "safe-to-deploy"
 [[exemptions.num_threads]]
 version = "0.1.8"
 criteria = "safe-to-deploy"
-
-[[exemptions.once_cell]]
-version = "1.12.0"
-criteria = "safe-to-run"
 
 [[exemptions.palette]]
 version = "0.7.7"
