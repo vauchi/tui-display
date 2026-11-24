@@ -534,7 +534,7 @@ fn tab_leaves_the_field_so_enter_activates_the_primary_action() {
 /// whatever action sat at the old position: the e2e device link's
 /// "Codes Match" was never pressed and the link timed out
 /// (vauchi/private#1364).
-// @scenario: generic_presentation_protocol.feature :: Return in a field reports a submission
+// @scenario: generic_presentation_protocol.feature :: User interaction returns as an opaque event
 #[test]
 fn a_new_surface_drops_the_bar_focus_so_return_runs_its_primary() {
     let mut state = state_with_input();
