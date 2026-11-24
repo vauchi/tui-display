@@ -13,61 +13,29 @@
 > change without notice. If you're here now, you can help shape it —
 > try it, break it, and tell us what's missing.
 
-# Vauchi TUI
+# Vauchi TUI Display
 
-Terminal user interface for living contact cards, exchanged in person.
+The terminal display library of Vauchi — living contact cards, exchanged
+in person.
 
-## Features
+A library, built on Ratatui and Crossterm: it renders Core's generic
+presentation commands in a terminal and reports key input as generic
+events. Its only Vauchi dependency is `vauchi-contract`; it links no
+Core. The `vauchi-tui` binary wires it to Core and is built and shipped
+by [linux-app](https://gitlab.com/vauchi/linux-app).
 
-- **Contact Card Management**: Create and edit your personal contact card
-- **QR Exchange**: Display QR codes in terminal for contact exchange
-- **Contacts Browser**: Navigate and manage contacts with keyboard
-- **Selective Visibility**: Control field visibility per contact
-- **Encrypted Backup**: Export/import with password-protected encryption
+Core prepares every command — copy, state, tokens, identifiers — and
+interprets every event; this library carries no Vauchi domain
+vocabulary.
 
-## Tech Stack
-
-- Rust + Ratatui (terminal UI framework)
-- Crossterm (cross-platform terminal handling)
-- Direct integration with `vauchi-core`
-
-## Quick Start
+## Build
 
 ```bash
-# Run directly
-cargo run -p vauchi-tui
-
-# Or build and run
-cargo build -p vauchi-tui --release
-./target/release/vauchi-tui
+cargo build
+cargo test
 ```
 
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `e` | Exchange (QR) |
-| `c` | Contacts |
-| `s` | Settings |
-| `d` | Devices |
-| `b` | Backup |
-| `n` | Sync now |
-| `a` | Add field |
-| `x` | Delete |
-| `?` | Help |
-| `q` | Quit |
-
-## Project Structure
-
-`src/` holds the binary entry point plus `app/` (reports terminal
-capabilities to core), `ui/` (decodes core's generic presentation
-commands and renders them, with snapshot tests) and `handlers/` (reports
-key input to core as opaque events). Core prepares every command —
-copy, state, tokens, identifiers — and interprets every event; the TUI
-carries no Vauchi domain vocabulary. Run `ls src/` for the live tree;
-this README deliberately carries no file inventory.
-
-## ⚠️ Mandatory Development Rules
+## Mandatory Development Rules
 
 **TDD**: Red→Green→Refactor. Test FIRST or delete code and restart.
 
@@ -83,4 +51,4 @@ Vauchi is open source and community-funded — no VC money, no data harvesting.
 
 ## License
 
-MIT
+GPL-3.0-or-later
