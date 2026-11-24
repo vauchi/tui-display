@@ -13,7 +13,10 @@ use super::presentation_protocol::{ChoiceStep, PresentationState, SurfaceTarget}
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InteractionState {
     context_index: usize,
-    context_focused: bool,
+    /// The surface and revision Tab moved focus to the bar on. Return runs
+    /// the focused bar action only on that screen; a new one gets its
+    /// primary (vauchi/private#1364).
+    context_focus: Option<(SurfaceId, u64)>,
     overlay_index: usize,
     /// Selected row and the surface it belongs to, so navigating away cannot
     /// carry an index onto a surface that never had that row.
@@ -47,7 +50,7 @@ impl InteractionState {
             return self.back_outcome(state);
         }
         if key.code == KeyCode::Enter {
-            if self.context_focused {
+            if self.bar_is_focused(state) {
                 return events_outcome(state.activate_context(self.context_index));
             }
             if let Some(index) = self.selected_surface_target(state) {
@@ -105,7 +108,9 @@ impl InteractionState {
                 } else {
                     (self.context_index + 1) % count
                 };
-                self.context_focused = true;
+                self.context_focus = state
+                    .surface()
+                    .map(|surface| (surface.surface_id.clone(), surface.revision));
             }
             return KeyOutcome::Consumed;
         }
@@ -119,6 +124,15 @@ impl InteractionState {
 
     pub fn selected_overlay(&self) -> usize {
         self.overlay_index
+    }
+
+    fn bar_is_focused(&self, state: &PresentationState) -> bool {
+        match (&self.context_focus, state.surface()) {
+            (Some((surface_id, revision)), Some(surface)) => {
+                surface.surface_id == *surface_id && surface.revision == *revision
+            }
+            _ => false,
+        }
     }
 
     pub fn selected_surface_target(&self, state: &PresentationState) -> Option<usize> {
@@ -199,7 +213,7 @@ impl InteractionState {
     }
 
     fn select_surface_target(&mut self, state: &PresentationState, index: usize) {
-        self.context_focused = false;
+        self.context_focus = None;
         if let Some(surface) = state.surface() {
             self.surface_row = Some((surface.surface_id.clone(), index));
         }
@@ -305,7 +319,7 @@ impl InteractionState {
         }
         let input = find_input(&state.surface()?.nodes, self.focused_binding.as_ref())?;
         self.focused_binding = Some(input.binding_id.clone());
-        self.context_focused = false;
+        self.context_focus = None;
         let mut value = input.value;
         match key.code {
             KeyCode::Char(character) if value.chars().count() < input.max_length => {
