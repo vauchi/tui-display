@@ -46,7 +46,6 @@ class DisplayReleaseGateTest(unittest.TestCase):
     # @internal — ADR-078: publication must wait for display conformance.
     def test_every_package_publisher_requires_the_display_gate(self):
         publishers = [name for name in JOBS if name.startswith("publish:package:")]
-        self.assertTrue(publishers, "no package publisher found")
         for publisher in publishers:
             with self.subTest(publisher=publisher):
                 self.assertIn("contract:replay", required_ancestors(publisher))

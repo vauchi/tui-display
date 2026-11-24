@@ -2,9 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# GitLab CI for vauchi-tui
-#
-# Terminal user interface
+# GitLab CI for vauchi-tui-display, the terminal display library
+# (ADR-078 tui-display): it takes the contract and links no Core. The
+# vauchi-tui binary is built and shipped by linux-app.
 #
 # Performance optimizations:
 #   - Self-hosted runners: sccache, persistent caches, load-balanced
@@ -14,7 +14,6 @@
 #
 # Pipeline strategy:
 #   - MR: Validation on relevant file changes
-#   - Upstream trigger: Verify compatibility when core merges to main
 #
 # Uses shared templates from vauchi/scripts for consistency.
 
@@ -100,7 +99,6 @@ lint:clippy:
   needs: []
   before_script:
     - !reference [.self-hosted, before_script]
-    - !reference [.clone-themes, before_script]
 
 # Duplicate dependency check (advisory)
 lint:duplicates:
@@ -124,7 +122,6 @@ test:unit:
   before_script:
     - !reference [.self-hosted, before_script]
     - !reference [.git-credentials, before_script]
-    - !reference [.clone-themes, before_script]
   script:
     - cargo nextest run --profile ci --all-targets
   artifacts:
@@ -142,7 +139,6 @@ check:display-release:
     - apk add --no-cache python3 py3-yaml
   script:
     - python3 ci/tests/display-release-gate.test.py
-    - python3 ci/tests/package-publication.test.py
   rules: !reference [contract:replay, rules]
 
 # ADR-078 D-11 looks for this job name in every shell repository: it replays
@@ -168,183 +164,7 @@ contract:replay:
       junit: target/nextest/ci/junit.xml
     expire_in: 1 week
 
-# VRT: render the committed insta .snap snapshots to PNG and upload to Visual
-# Regression Tracker. VRT is image-only; a TUI snapshot is a monospace
-# character grid, so the render is byte-deterministic for a pinned (Pillow
-# version, font bytes, font size) — a baseline only moves when the snapshot
-# text changes. Advisory (allow_failure) like every other platform's VRT job.
-test:vrt:
-  extends: [.rust-runner, .timeout-cold-rebuild]
-  stage: test
-  needs:
-    - job: lint:format
-      optional: true
-  allow_failure: true
-  before_script:
-    - !reference [.self-hosted, before_script]
-  variables:
-    VRT_PLATFORM: tui
-    VRT_SCREENSHOT_DIR: tests/vrt/out
-  script:
-    - |
-      # Pinned render deps: Pillow (bundles its own freetype in the wheel, so
-      # rasterization is identical across runners) + sha256-pinned DejaVu Sans
-      # Mono (full box-drawing + symbol coverage). venv avoids the PEP-668
-      # externally-managed-environment lock; fall back to --break-system-packages.
-      VENV="/tmp/vrt-venv-${CI_JOB_ID}"
-      if python3 -m venv "$VENV" 2>/dev/null; then
-        PY="$VENV/bin/python"; "$VENV/bin/pip" install --quiet Pillow==10.4.0
-      else
-        PY="python3"; python3 -m pip install --quiet --break-system-packages Pillow==10.4.0
-      fi
-      FONT="/tmp/DejaVuSansMono-${CI_JOB_ID}.ttf"
-      curl -fsSL -o "$FONT" \
-        "https://github.com/matplotlib/matplotlib/raw/v3.9.2/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSansMono.ttf"
-      echo "602ec86b8948cfcd956482fe64f94c36c867770149ef2f791d4613f443bcecb3  $FONT" | sha256sum -c -
-      "$PY" tests/vrt/snap-to-png.py --snap-dir . --out-dir "$VRT_SCREENSHOT_DIR" \
-        --font "$FONT" --font-size 16
-  artifacts:
-    when: always
-    paths:
-      - tests/vrt/out/
-    expire_in: 1 week
-  after_script:
-    - !reference [.vrt-upload-script, script]
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
-# Screen catalog: replay Core's screen catalog (every app screen as one
-# Command batch, no navigation script) through the real terminal renderer
-# and rasterize the frames to PNG, so a presentation change in Core shows
-# up on every TUI pipeline. The full catalog comes from the contract
-# revision in Cargo.lock; its revision and hash accompany the artifacts. A command
-# variant the pinned vauchi-core cannot decode is skipped and named in the
-# job log and in build/screen-catalog/snap/manifest.json — that is a Core
-# pin skew to fix with a bump, not a render failure.
-test:screen-catalog:
-  extends: [.rust-runner, .timeout-cold-rebuild]
-  stage: test
-  needs:
-    - job: lint:format
-      optional: true
-  allow_failure: false
-  before_script:
-    - !reference [.self-hosted, before_script]
-    - !reference [.git-credentials, before_script]
-  variables:
-    VRT_PLATFORM: tui
-    VRT_SCREENSHOT_DIR: build/screen-catalog/png
-  script:
-    - mkdir -p build/screen-catalog
-    - |
-      mkdir -p build
-      curl --fail-with-body --silent --show-error \
-        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-        "${CI_API_V4_URL}/projects/vauchi%2Fcontract/repository/files/ci%2Ffetch-screen-catalog.py/raw?ref=57defdf7231a592049a8fcab45cd8603e3ab5d40" \
-        -o build/fetch-screen-catalog.py
-      python3 build/fetch-screen-catalog.py build/screen_catalog_v1.json --assembly
-    - cargo run --locked -- --render-catalog build/screen_catalog_v1.json build/screen-catalog/snap 100 40
-    - |
-      # Same pinned Pillow + DejaVu Sans Mono as test:vrt, so both jobs'
-      # PNG output is byte-comparable in VRT.
-      VENV="/tmp/vrt-venv-${CI_JOB_ID}"
-      if python3 -m venv "$VENV" 2>/dev/null; then
-        PY="$VENV/bin/python"; "$VENV/bin/pip" install --quiet Pillow==10.4.0
-      else
-        PY="python3"; python3 -m pip install --quiet --break-system-packages Pillow==10.4.0
-      fi
-      FONT="/tmp/DejaVuSansMono-${CI_JOB_ID}.ttf"
-      curl -fsSL -o "$FONT" \
-        "https://github.com/matplotlib/matplotlib/raw/v3.9.2/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSansMono.ttf"
-      echo "602ec86b8948cfcd956482fe64f94c36c867770149ef2f791d4613f443bcecb3  $FONT" | sha256sum -c -
-      "$PY" tests/vrt/snap-to-png.py --snap-dir build/screen-catalog/snap --out-dir "$VRT_SCREENSHOT_DIR" \
-        --font "$FONT" --font-size 16
-  artifacts:
-    when: always
-    paths:
-      - build/screen_catalog_v1.json
-      - build/screen_catalog_v1.provenance.json
-      - build/screen_catalog_v1.inventory.json
-      - build/screen-catalog/
-    expire_in: 1 week
-  after_script:
-    - !reference [.vrt-upload-script, script]
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
-# Manual job: record insta snapshot baselines on CI and commit them to the branch.
-# CI is the single source of truth for baselines — never record locally.
-test:snapshots:record:
-  extends: [.rust-runner, .validation-rust, .timeout-cold-rebuild]
-  stage: test
-  needs:
-    - job: lint:format
-      optional: true
-  when: manual
-  allow_failure: true
-  before_script:
-    - !reference [.self-hosted, before_script]
-    - !reference [.git-credentials, before_script]
-  script:
-    - echo "📸 Recording insta snapshot baselines..."
-    - |
-      # Per-job /tmp paths — shared shell runner persists /tmp across jobs,
-      # so fixed names risk EACCES from a foreign-owned leftover file.
-      CARGO_LOG="/tmp/cargo-record-${CI_JOB_ID}.log"
-      set +e
-      INSTA_UPDATE=always cargo test --all-targets 2>&1 | tee "$CARGO_LOG"
-      CARGO_EXIT=$?
-      set -e
-      if [ "$CARGO_EXIT" -ne 0 ]; then
-        if grep -q "test result:" "$CARGO_LOG"; then
-          echo "✅ Tests executed (exit code ${CARGO_EXIT} from snapshot updates — expected)"
-        else
-          echo "❌ Build/test infrastructure failure (exit code ${CARGO_EXIT})"
-          tail -20 "$CARGO_LOG"
-          exit 1
-        fi
-      else
-        echo "✅ All tests passed"
-      fi
-    # Preserve ALL recorded snapshots across git checkout
-    # (covers tests/snapshots/, src/ui/snapshots/, and any future location)
-    - find . -name '*.snap' -not -path './target/*' -not -path './.cargo/*' | tar cf "/tmp/insta-all-snapshots-${CI_JOB_ID}.tar" -T -
-    # Configure git for push — bypass credential helpers and insteadOf rewrites
-    - git config --global --unset-all url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf 2>/dev/null || true
-    - git config --global --unset-all credential.helper 2>/dev/null || true
-    - git config user.name "vauchi-ci-bot"
-    - git config user.email "ci@vauchi.app"
-    - PUSH_URL="https://vauchi-gitlab-runner:${PROJECT_ACCESS_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
-    - git fetch "$PUSH_URL" "${CI_COMMIT_REF_NAME}"
-    - git checkout "${CI_COMMIT_REF_NAME}"
-    # Restore ALL recorded snapshots (git checkout resets working directory)
-    - tar xf "/tmp/insta-all-snapshots-${CI_JOB_ID}.tar"
-    # Commit and push baselines (skip if unchanged)
-    - |
-      find . -name '*.snap' -not -path './target/*' -not -path './.cargo/*' -exec git add {} +
-      if git diff --cached --quiet; then
-        echo "✅ No baseline changes — nothing to commit"
-        exit 0
-      fi
-      CHANGED=$(git diff --cached --stat | tail -1)
-      git commit -m "chore: record snapshot baselines [ci]
-
-      ${CHANGED}
-
-      Co-Authored-By: vauchi-ci-bot <ci@vauchi.app>"
-      git push "$PUSH_URL" HEAD:${CI_COMMIT_REF_NAME}
-      echo "✅ Baselines committed and pushed — validation pipeline will trigger"
-  rules:
-    - !reference [.validation-rust, rules]
-
 # Main: full coverage with llvm-cov (uses shared .coverage-job template)
-# TUI needs themes (compile-time include_bytes), cloned in before_script.
-# Locales are no longer cloned here: vauchi-app vendors the English
-# catalogue, so building it no longer requires the content repo. The TUI
-# reads no locale file of its own — every string arrives as Core-prepared
-# command copy.
 coverage:workspace:
   extends: [.coverage-job, .rust-runner, .timeout-cold-rebuild]
   needs:
@@ -355,28 +175,15 @@ coverage:workspace:
   before_script:
     - !reference [.self-hosted, before_script]
     - !reference [.git-credentials, before_script]
-    - !reference [.clone-themes, before_script]
     - rustup component add llvm-tools-preview 2>/dev/null || true
   variables:
     COVERAGE_REPO_LABEL: "tui"
     COVERAGE_USE_NEXTEST: "true"
 
-# Binary size tracking (main merges + release tags)
-perf:binary-size:
-  extends: [.binary-size-tracking-job, .rust-runner, .timeout-cold-rebuild]
-  before_script:
-    - !reference [.self-hosted, before_script]
-    - !reference [.git-credentials, before_script]
-  variables:
-    BINARY_SIZE_REPO_LABEL: "tui"
-
 # ============================================================
 # Mutation Stage (uses shared template from vauchi/scripts)
 # ============================================================
 
-# --in-place because theme.rs include_bytes!("../../themes/...") resolves
-# against the source tree: cargo-mutants' default copy to a temp dir has
-# no ../themes sibling, so the unmutated baseline could not compile.
 mutation:nightly:
   extends: [.mutation-nightly, .rust-runner]
   # 421 mutants took 32 min on a warm nell-shell but overran
@@ -385,10 +192,8 @@ mutation:nightly:
   before_script:
     - !reference [.self-hosted, before_script]
     - !reference [.git-credentials, before_script]
-    - !reference [.clone-themes, before_script]
   variables:
     MUTATION_TIMEOUT_NIGHTLY: "120"
-    MUTATION_EXTRA_FLAGS: "--in-place"
 
 # ============================================================
 # Security Stage (runs on dependency changes, gated by lint, parallel with test)
@@ -443,14 +248,6 @@ security:vet-autofix:
       chmod +x vet-autofix.sh
     - ./vet-autofix.sh --sync-from=77874344
 
-# ============================================================
-# Advisory: Cargo.lock Freshness Check
-# ============================================================
-# Warns when vauchi-core dependency is behind main. Never blocks.
-
-check:core-freshness:
-  extends: .check-core-freshness
-
 # Blocks MRs with non-main branch refs in Cargo.toml git dependencies.
 check:branch-refs:
   extends: .check-git-branch-refs
@@ -460,20 +257,22 @@ check:design-drift:
   extends: .design-drift-job
   variables:
     DESIGN_DRIFT_MATCH_MODE: "grep"
-    DESIGN_DRIFT_GREP_FILE: "tui-display/src/ui/presentation_renderer"
+    DESIGN_DRIFT_GREP_FILE: "src/ui/presentation_renderer"
     DESIGN_DRIFT_PROTOCOL: "presentation"
-    CORE_REF: "main"
+    CONTRACT_PIN_FILE: "Cargo.toml"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         compare_to: refs/heads/$CI_DEFAULT_BRANCH
         paths:
-          - "src/ui/widgets/screen_renderer/mod.rs"
+          - "src/ui/presentation_renderer*"
+          - "src/ui/presentation_renderer/**/*"
           - ".gitlab-ci.yml"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         paths:
-          - "src/ui/widgets/screen_renderer/mod.rs"
+          - "src/ui/presentation_renderer*"
+          - "src/ui/presentation_renderer/**/*"
           - ".gitlab-ci.yml"
 
 # Removed symbols: detect stale references to removed features
@@ -497,9 +296,7 @@ lint:humble:
 
 # Exact-zero release gate (ADR-066): a release tag may carry no remaining
 # Humble UI boundary violations, unlike MR ratchets which let existing
-# debt shrink over time. Wired into build:release's needs below so a
-# failing gate blocks publish:package:tui even though needs: makes that
-# job DAG-ordered past the lint stage.
+# debt shrink over time.
 release:ratchet-zero:
   extends: .release-ratchet-zero
 
@@ -579,117 +376,6 @@ rc:security:audit:
   extends: [.rust-runner-readonly, .rc-security-audit]
 
 # ============================================================
-# Build + Publish (mirrors cli's publish:package:cli)
-# ============================================================
-# The TUI had no release artifact: RG-14 needs a real distribution
-# channel per consumer. Publish the Linux amd64 binary to the generic
-# package registry on main and on release tags, exactly like the CLI.
-
-build:release:
-  extends: [.linux-runner, .timeout-standard]
-  stage: build
-  needs:
-    - job: contract:replay
-    - job: test:unit
-      optional: true
-    - job: lint:format
-      optional: true
-    - job: release:ratchet-zero
-      optional: true
-  script:
-    - cargo build --release --locked
-  artifacts:
-    paths:
-      - target/release/vauchi-tui
-    expire_in: 1 week
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-    # Run in MRs when dependency pins change so Cargo verifies the lockfile.
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - Cargo.toml
-        - Cargo.lock
-        - .gitlab-ci.yml
-
-publish:package:tui:
-  stage: deploy
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:3.21
-  tags: [docker]
-  needs:
-    - job: build:release
-      artifacts: true
-  variables:
-    PACKAGE_NAME: "vauchi-tui"
-    BINARY_NAME: "vauchi-tui-linux-amd64"
-  before_script:
-    - apk add --no-cache curl coreutils
-  script:
-    - |
-      set -euo pipefail
-      cp target/release/vauchi-tui "${BINARY_NAME}"
-      sha256sum "${BINARY_NAME}" > "${BINARY_NAME}.sha256"
-
-      upload_package() {
-        local version="$1"
-        local base="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${version}"
-        curl -fsSL --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          --upload-file "${BINARY_NAME}" "${base}/${BINARY_NAME}"
-        curl -fsSL --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          --upload-file "${BINARY_NAME}.sha256" "${base}/${BINARY_NAME}.sha256"
-        echo "Published ${PACKAGE_NAME}@${version}"
-      }
-
-      if [ -n "${CI_COMMIT_TAG:-}" ]; then
-        upload_package "${CI_COMMIT_TAG}"
-      else
-        upload_package "${CI_COMMIT_SHA}"
-      fi
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: never
-    # An upstream-triggered rerun rebuilds the same SHA with newer core
-    # main; the registry rejects the duplicate with 400. Only the push
-    # pipeline publishes.
-    - if: $CI_PIPELINE_SOURCE == "pipeline" || $CI_PIPELINE_SOURCE == "trigger"
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
-
-# ============================================================
-# Verify Stage (upstream trigger only)
-# ============================================================
-# Runs when core merges to main and triggers this repo via
-# verify:downstream-rust. Verifies this repo builds and tests
-# pass against the updated vauchi-core.
-
-verify:upstream-compat:
-  extends: [.rust-runner, .verify-on-upstream, .verify-nextest-artifacts, .timeout-standard]
-  stage: verify
-  needs: []
-  before_script:
-    - !reference [.self-hosted, before_script]
-    - !reference [.git-credentials, before_script]
-    - !reference [.clone-themes, before_script]
-  script:
-    - cargo nextest run --profile ci --all-targets
-
-# Runs when core creates a dev/RC tag and triggers this repo.
-# Verifies this repo builds and tests pass against the core tag.
-verify:upstream-prerelease:
-  extends: [.rust-runner, .verify-on-upstream-prerelease, .verify-nextest-artifacts, .timeout-standard]
-  stage: verify
-  needs: []
-  before_script:
-    - !reference [.self-hosted, before_script]
-    - !reference [.git-credentials, before_script]
-    - !reference [.clone-themes, before_script]
-  script:
-    - cargo nextest run --profile ci --all-targets
-
-# ============================================================
 # Deploy Stage — Badge Pages
 # ============================================================
 
@@ -729,13 +415,10 @@ check:parser-parity:
   extends: .parser-parity-job
   variables:
     FRONTEND_NAME: "tui"
-    PARSER_FILE: "tui-display/src/ui/presentation_renderer"
+    PARSER_FILE: "src/ui/presentation_renderer"
     PARSER_PROTOCOL: "presentation"
     PARSER_SCRIPT_REF: "ci-templates-v2026.11.25"
-    # The Core this repository pins, not Core main: since the contract
-    # move (core!2142) main no longer holds the presentation enum.
-    CORE_PIN_FILE: "Cargo.toml"
-    CORE_PIN_KIND: "cargo"
+    CONTRACT_PIN_FILE: "Cargo.toml"
 
 # Fails if this shell renders an overlay it cannot close. Core opens a
 # menu with PresentOverlay and closes it with DismissOverlay; a shell
@@ -766,7 +449,7 @@ check:shell-command-conformance:
   needs: []
   variables:
     PICTOGRAM_FORMAT: "terminal"
-    PICTOGRAM_COPIES: "tui-display/assets/pictograms/exchange-terminal.json"
+    PICTOGRAM_COPIES: "assets/pictograms/exchange-terminal.json"
   before_script:
     - apk add --no-cache python3 git
     - git clone --quiet https://gitlab.com/vauchi/assets.git /tmp/assets
