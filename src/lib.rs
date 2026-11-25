@@ -4,8 +4,10 @@
 //! Terminal rendering and keyboard input for the Vauchi presentation contract.
 
 mod file_pick;
+pub mod host;
 pub mod screen_catalog;
 mod session;
+pub mod terminal;
 pub mod ui;
 
 pub use session::{SessionView, TerminalSession};
