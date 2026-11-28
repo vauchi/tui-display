@@ -3,13 +3,13 @@
 
 [package]
 name = "vauchi-tui-display"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 description = "Terminal display shell for the Vauchi presentation contract"
 
 [dependencies]
-vauchi-contract = { git = "https://gitlab.com/vauchi/contract.git", tag = "v0.101.0", version = "=0.101.0" }
+vauchi-contract = { git = "https://gitlab.com/vauchi/contract.git", tag = "v0.102.0", version = "=0.102.0" }
 ratatui-core = { version = "0.1.2", default-features = false, features = ["std", "layout-cache", "underline-color"] }
 ratatui-widgets = { version = "0.3.2", default-features = false, features = ["std", "unstable-rendered-line-info"] }
 crossterm = "0.28"
